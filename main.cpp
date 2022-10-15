@@ -9,8 +9,6 @@
 
 using namespace std;
 
-#define LIBDLL extern "C" __declspec(dllexport)
-
 typedef pair<int, int> pii;
 typedef pair<double, bool> pdb;
 
@@ -34,14 +32,7 @@ struct pvb{
 	pvb(){}
 };
 
-wchar_t* Convert_To_wchar_t(string s) {
-	wchar_t* res = new wchar_t[s.size() + 1];
-	copy(s.begin(), s.end(), res);
-	res[s.length()] = 0;
-	return res;
-}
-
-bool Check_Correct_Bracket_Sequence() {
+bool checkCorrectBracketSequence() {
 	int cnt = 0;
 
 	for (char x : query) {
@@ -60,11 +51,11 @@ bool Check_Correct_Bracket_Sequence() {
 }
 
 vector<vector<int>> children;
-vector<pii> bracket_pos;
-vector<int> bracket_starting_point;
+vector<pii> brackPos;
+vector<int> bracketStartingPoint;
 
 //check if query contains only offline-operable symbols
-bool Check_Math_Symbols() {
+bool checkMathSymbols() {
 	bool check = 1;
 	string cur = "";
 	for (int i = 0; i < query.size(); i++) {
@@ -86,17 +77,13 @@ bool Check_Math_Symbols() {
 	return check;
 }
 
-double Convert_To_Rad(double degree){
+double toRadian(double degree){
 	return degree * acos(-1.0) / 180;
 }
 
-//change +--+9 -> 9
-pdb Process_Func(double result, deque<string> func){
+//change +--+9 -> 9 and process special operations like log, trigonometry
+pdb processFunc(double result, deque<string> func){
 	reverse(func.begin(), func.end());
-	bool c = 0;
-	if (func.empty() && result == double(2) / 3){
-		c = 1;
-	}
 	for(string f : func){
 		if (f == "*" || f == "/" || f == "%" || f == "^" || f == "!"){
 			return invalid_syntax;
@@ -127,17 +114,17 @@ pdb Process_Func(double result, deque<string> func){
 			}
 			result = log(result);
 		}else {
-			bool check = 0;
+			bool check = 0; // check = 1 if current result is a non-negative integer divisible by 90
 			if (abs(result) >= EPS && abs(result - int(result)) < EPS && int(result) % 90 == 0){
 				check = 1;
 			}
-			result = Convert_To_Rad(result);
+			result = toRadian(result);
 			if (f == "sin"){
 				result = sin(result);
 			} else if (f == "cos"){
 				result = cos(result);
 			} else {
-				if (check){
+				if (check){ // cant apply tan and cot to a non-negative integer divisible by 90
 					return invalid_syntax;
 				}
 				if (f == "tan"){
@@ -168,16 +155,16 @@ public:
 		}
 	}
 
-	int get_root(int x){
+	int getRoot(int x){
 		if (root[x] != x){
-			root[x] = get_root(root[x]);
+			root[x] = getRoot(root[x]);
 		}
 		return root[x];
 	}
 
 	void join(int u, int v){
-		u = get_root(u);
-		v = get_root(v);
+		u = getRoot(u);
+		v = getRoot(v);
 		if (u > v){
 			swap(u, v);
 		}
@@ -195,7 +182,7 @@ long long Factorial(int n){
 	return F[n];
 }
 
-pvb Process_New_Operators(deque<string> &func, vector<double> &nums){
+pvb processNewOperators(deque<string> &func, vector<double> &nums){
 	deque<string> f = {"*"};
 	vector<double> n = {35, 3};
 	pvb invalid = pvb({}, 0);
@@ -232,9 +219,8 @@ pvb Process_New_Operators(deque<string> &func, vector<double> &nums){
 	return pvb(operators, 1);
 }
 
-// pair(result, status)
+// returns pair(result, status)
 pdb dp(int l, int r){
-
 	//get numbers' positions
 	vector<double> nums;
 	string cur = "";
@@ -253,9 +239,9 @@ pdb dp(int l, int r){
 				cur_func = "";
 			}
 			if (query[i] == '('){
-				int pos = bracket_starting_point[i];
-				int S = bracket_pos[pos].first;
-				int T = bracket_pos[pos].second;
+				int pos = bracketStartingPoint[i];
+				int S = brackPos[pos].first;
+				int T = brackPos[pos].second;
 				pdb res = dp(S, T);
 				if (res.second == 0){
 					return invalid_syntax;
@@ -291,12 +277,12 @@ pdb dp(int l, int r){
 					double num = stod(cur);
 					// 3(8) or 0.12(0.45), convert to 3 * 8 and 0.12 * 0.45
 					if (! decimal_part || count(res_to_string.begin(), res_to_string.end(), '.') != 0){
-						pvb process_new_operators_result = Process_New_Operators(func, nums);
+						pvb process_new_operators_result = processNewOperators(func, nums);
 						if (process_new_operators_result.status == 0){
 							return invalid_syntax;
 						}
 						operators.insert(operators.end(), process_new_operators_result.operators.begin(), process_new_operators_result.operators.end());
-						pdb process_func_result = Process_Func(stod(cur), func);
+						pdb process_func_result = processFunc(stod(cur), func);
 						if (process_func_result.second == 0){
 							return invalid_syntax;
 						}
@@ -320,13 +306,13 @@ pdb dp(int l, int r){
 						}
 						num += numerator / denominator;
 
-						pvb process_new_operators_result = Process_New_Operators(func, nums);
+						pvb process_new_operators_result = processNewOperators(func, nums);
 						if (process_new_operators_result.status == 0){
 							return invalid_syntax;
 						}
 						operators.insert(operators.end(), process_new_operators_result.operators.begin(), process_new_operators_result.operators.end());
 
-						pdb process_func_result = Process_Func(num, func);
+						pdb process_func_result = processFunc(num, func);
 
 						if (process_func_result.second == 0){
 							return invalid_syntax;
@@ -336,13 +322,13 @@ pdb dp(int l, int r){
 					}
 					cur = "";
 				} else {
-					pvb process_new_operators_result = Process_New_Operators(func, nums);
+					pvb process_new_operators_result = processNewOperators(func, nums);
 					if (process_new_operators_result.status == 0){
 						return invalid_syntax;
 					}
 					operators.insert(operators.end(), process_new_operators_result.operators.begin(), process_new_operators_result.operators.end());
 
-					res = Process_Func(res.first, func);
+					res = processFunc(res.first, func);
 					if (res.second == 0){
 						return invalid_syntax;
 					}
@@ -375,13 +361,13 @@ pdb dp(int l, int r){
 					if (cur.size() > 18){
 						return invalid_syntax;
 					}
-					pvb process_new_operators_result = Process_New_Operators(func, nums);
+					pvb process_new_operators_result = processNewOperators(func, nums);
 					if (process_new_operators_result.status == 0){
 						return invalid_syntax;
 					}
 					operators.insert(operators.end(), process_new_operators_result.operators.begin(), process_new_operators_result.operators.end());
 
-					pdb res = Process_Func(stod(cur), func);
+					pdb res = processFunc(stod(cur), func);
 					if (res.second == 0){
 						return invalid_syntax;
 					}
@@ -417,7 +403,7 @@ pdb dp(int l, int r){
 	// prioritize ^
 	for(int i = 0; i < operators.size(); i++){
 		if (operators[i] == "^"){
-			int rootu = dsu.get_root(i);
+			int rootu = dsu.getRoot(i);
 			if (log(LIMIT) / log(nums[rootu]) < nums[i + 1]){
 					return invalid_syntax;
 				}
@@ -429,7 +415,7 @@ pdb dp(int l, int r){
 	//proceed to *, /, %
 	for(int i = 0; i < operators.size(); i++){
 		if (operators[i] == "*" || operators[i] == "/" || operators[i] == "%"){
-			int rootu = dsu.get_root(i);
+			int rootu = dsu.getRoot(i);
 			if (operators[i] == "*"){
 				if (LIMIT / nums[rootu] < nums[i + 1]){
 					return invalid_syntax;
@@ -452,7 +438,7 @@ pdb dp(int l, int r){
 	//finally, + and -
 	for(int i = 0; i < operators.size(); i++){
 		if (operators[i] == "+" || operators[i] == "-"){
-			int rootu = dsu.get_root(i);
+			int rootu = dsu.getRoot(i);
 			if (operators[i] == "+"){
 				if (LIMIT - nums[rootu] < nums[i + 1]){
 					return invalid_syntax;
@@ -485,9 +471,9 @@ pdb dp(int l, int r){
 }
 
 string Calculate(string inquiry) {
-	bracket_pos.clear();
+	brackPos.clear();
 	children.clear();
-	bracket_starting_point.clear();
+	bracketStartingPoint.clear();
 	query = inquiry;
 	string invalid = "";
 
@@ -497,32 +483,32 @@ string Calculate(string inquiry) {
 	}
 
 	// invalid syntax
-	if (! Check_Correct_Bracket_Sequence() || ! Check_Math_Symbols()) {
+	if (! checkCorrectBracketSequence() || ! checkMathSymbols()) {
 		return invalid;
 	}
 
 	// make outer brackets as depth 0
 	query = "(" + query + ")";
-	bracket_starting_point = vector<int>(query.size(), -1);
+	bracketStartingPoint = vector<int>(query.size(), -1);
 
 	//create a tree in which inner brackets should be children (lower depth) in the tree
 	// e.g ((3 + 5) / 2 - (3 - 4))  2nd and 3rd should be children of 1st opeining bracket in the tree
 	vector<int> cur = {0};
-	bracket_pos.push_back({0, query.size() - 1});
+	brackPos.push_back({0, query.size() - 1});
 	children.resize(count(query.begin(), query.end(), '('));
-	bracket_starting_point[0] = 0;
+	bracketStartingPoint[0] = 0;
 	
 	// total encountered opening brackets
 	int total = 0;
 	for(int i = 1; i < query.size() - 1; i++){
 		if (query[i] == '('){
 			total++;
-			bracket_pos.push_back({i, -1});
-			bracket_starting_point[i] = total;
+			brackPos.push_back({i, -1});
+			bracketStartingPoint[i] = total;
 			children[cur.back()].push_back(total);
 			cur.push_back(total);
 		} else if (query[i] == ')'){
-			bracket_pos[cur.back()].second = i;
+			brackPos[cur.back()].second = i;
 			cur.pop_back();
 		}
 	}
